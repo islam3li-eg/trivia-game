@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Trivia Multiplayer Game</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+</head>
+<body>
+
+    <h1>Challenge Your Knowledge</h1>
+
+    <!-- Landing Page -->
+    <div id="landing-page">
+        <input type="text" id="player-name" placeholder="Enter your name">
+        <button onclick="joinLobby()">Join Game</button>
+    </div>
+
+    <!-- Lobby Page -->
+    <div id="lobby" style="display: none;">
+        <h2>Waiting Room</h2>
+        <ul id="player-list"></ul>
+        <button onclick="markReady()">I’m Ready</button>
+        <button id="start-button" style="display: none;" onclick="startGame()">Start Game</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
