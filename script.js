@@ -18,6 +18,12 @@ let playerName = '';
 let playerId = '';
 
 function joinLobby() {
+    // Check if player already joined on this device
+    if (localStorage.getItem('playerId')) {
+        alert('You already joined from this device.');
+        return;
+    }
+
     playerName = document.getElementById('player-name').value.trim();
     if (playerName === '') {
         alert('Please enter your name!');
@@ -25,17 +31,22 @@ function joinLobby() {
     }
 
     playerId = Date.now(); // Unique ID
+    localStorage.setItem('playerId', playerId); // Save session locally
+
+    // Save player to lobby
     db.ref('lobby/' + playerId).set({
         name: playerName,
         ready: false
     });
+
+    // Auto remove player if they close the game
+    db.ref('lobby/' + playerId).onDisconnect().remove();
 
     document.getElementById('landing-page').style.display = 'none';
     document.getElementById('lobby').style.display = 'block';
 
     listenForPlayers();
 }
-
 function listenForPlayers() {
     db.ref('lobby/').on('value', (snapshot) => {
         const players = snapshot.val();
