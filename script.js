@@ -32,7 +32,8 @@ function signInWithGoogle() {
             joinLobby();
         })
         .catch(error => {
-            console.error(error);
+            console.error('Google Sign-In Error:', error);
+            alert('Google Login Failed. Check console for details.');
         });
 }
 
