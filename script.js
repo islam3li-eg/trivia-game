@@ -16,37 +16,23 @@ const db = firebase.database();
 
 let playerName = '';
 let playerId = '';
-
-// If the device already has a live session, block joining
-if (localStorage.getItem('livePlayerId')) {
-    alert('You already have a live session open on this device.');
-} else {
-    console.log('You can join the game.');
-}
+let deviceSessionKey = navigator.userAgent + '_' + Math.random(); // Unique device session
 
 function joinLobby() {
-    let storedPlayerId = localStorage.getItem('livePlayerId');
+    const deviceSessionRef = db.ref('deviceSessions/' + btoa(deviceSessionKey));
 
-    // Check if player is already in Firebase
-    if (storedPlayerId) {
-        db.ref('lobby/' + storedPlayerId).once('value', (snapshot) => {
-            if (snapshot.exists()) {
-                // Player is still in Firebase → Block
-                alert('You already have a live session open on this device.');
-                return;
-            } else {
-                // Player is gone from Firebase → Clear localStorage and allow joining
-                localStorage.removeItem('livePlayerId');
-                startJoining();
-            }
-        });
-    } else {
-        // No stored player → allow joining
-        startJoining();
-    }
+    // Check if this device already has a live session
+    deviceSessionRef.once('value', (snapshot) => {
+        if (snapshot.exists()) {
+            alert('You already have a live session open on this device.');
+            return;
+        } else {
+            startJoining(deviceSessionRef);
+        }
+    });
 }
 
-function startJoining() {
+function startJoining(deviceSessionRef) {
     playerName = document.getElementById('player-name').value.trim();
     if (playerName === '') {
         alert('Please enter your name!');
@@ -54,7 +40,15 @@ function startJoining() {
     }
 
     playerId = Date.now(); // Unique ID
-    localStorage.setItem('livePlayerId', playerId); // Track this live session
+
+    // Save device session
+    deviceSessionRef.set({
+        active: true,
+        playerId: playerId
+    });
+
+    // Auto remove device session on disconnect
+    deviceSessionRef.onDisconnect().remove();
 
     // Save player to lobby
     db.ref('lobby/' + playerId).set({
@@ -62,22 +56,15 @@ function startJoining() {
         ready: false
     });
 
-    // Auto remove player if disconnected
+    // Auto remove player on disconnect
     db.ref('lobby/' + playerId).onDisconnect().remove();
 
-    // Watch if player is removed from Firebase → Clear device session
-    db.ref('lobby/' + playerId).on('value', (snapshot) => {
-        if (snapshot.exists() === false) {
-            localStorage.removeItem('livePlayerId'); // Clean device session
-        }
-    });
-
-    // Show lobby
     document.getElementById('landing-page').style.display = 'none';
     document.getElementById('lobby').style.display = 'block';
 
     listenForPlayers();
 }
+
 function listenForPlayers() {
     db.ref('lobby/').on('value', (snapshot) => {
         const players = snapshot.val();
@@ -88,27 +75,22 @@ function listenForPlayers() {
         let playerCount = 0;
         let firstPlayerId = null;
 
-        // Identify the host (first player)
         for (let id in players) {
             if (!firstPlayerId) firstPlayerId = id;
         }
 
-        // Display players
         for (let id in players) {
             const li = document.createElement('li');
             li.textContent = players[id].name;
 
-            // Show host icon
             if (id === firstPlayerId) {
                 li.textContent += ' 👑 Host';
             }
 
-            // Show if this is your session
-            if (id == localStorage.getItem('livePlayerId')) {
+            if (id == playerId) {
                 li.textContent += ' 👉 You';
             }
 
-            // Show ready status
             li.textContent += players[id].ready ? ' ✅' : ' ❌';
             playerList.appendChild(li);
 
@@ -116,7 +98,6 @@ function listenForPlayers() {
             playerCount++;
         }
 
-        // Show "Let's Start" button only to host when all are ready
         if (allReady && playerCount > 1 && playerId == firstPlayerId) {
             document.getElementById('start-button').style.display = 'inline-block';
         } else {
@@ -133,5 +114,5 @@ function markReady() {
 
 function startGame() {
     db.ref('gameStarted').set(true);
-    window.location.href = 'game.html'; // We will build this page next
+    window.location.href = 'game.html'; // We will build this next
 }
