@@ -123,5 +123,5 @@ function markReady() {
 
 function startGame() {
     db.ref('gameStarted').set(true);
-    window.location.href = 'game.html'; // We will build this page next
+    window.location.href = `game.html?id=${playerId}&name=${playerName}`;
 }
