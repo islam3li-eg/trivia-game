@@ -25,12 +25,28 @@ if (localStorage.getItem('livePlayerId')) {
 }
 
 function joinLobby() {
-    // Block multiple live sessions
-    if (localStorage.getItem('livePlayerId')) {
-        alert('You already have a live session open on this device.');
-        return;
-    }
+    let storedPlayerId = localStorage.getItem('livePlayerId');
 
+    // Check if player is already in Firebase
+    if (storedPlayerId) {
+        db.ref('lobby/' + storedPlayerId).once('value', (snapshot) => {
+            if (snapshot.exists()) {
+                // Player is still in Firebase → Block
+                alert('You already have a live session open on this device.');
+                return;
+            } else {
+                // Player is gone from Firebase → Clear localStorage and allow joining
+                localStorage.removeItem('livePlayerId');
+                startJoining();
+            }
+        });
+    } else {
+        // No stored player → allow joining
+        startJoining();
+    }
+}
+
+function startJoining() {
     playerName = document.getElementById('player-name').value.trim();
     if (playerName === '') {
         alert('Please enter your name!');
@@ -49,7 +65,7 @@ function joinLobby() {
     // Auto remove player if disconnected
     db.ref('lobby/' + playerId).onDisconnect().remove();
 
-    // Watch if player is removed from Firebase → clear device session
+    // Watch if player is removed from Firebase → Clear device session
     db.ref('lobby/' + playerId).on('value', (snapshot) => {
         if (snapshot.exists() === false) {
             localStorage.removeItem('livePlayerId'); // Clean device session
@@ -62,7 +78,6 @@ function joinLobby() {
 
     listenForPlayers();
 }
-
 function listenForPlayers() {
     db.ref('lobby/').on('value', (snapshot) => {
         const players = snapshot.val();
