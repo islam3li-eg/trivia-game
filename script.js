@@ -19,7 +19,7 @@ let isHost = false;
 
 function signInWithGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
-    firebase.auth().signInWithPopup(provider)
+    firebase.auth().signInWithRedirect(provider);
         .then(result => {
             const user = result.user;
             playerId = user.uid;
