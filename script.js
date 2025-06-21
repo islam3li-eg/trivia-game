@@ -17,10 +17,10 @@ let playerId = '';
 let playerName = '';
 let isHost = false;
 
-function signInWithGoogle() {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    firebase.auth().signInWithRedirect(provider);
-        .then(result => {
+// 🔹 Listen for Google Login Result after Redirect
+firebase.auth().getRedirectResult()
+    .then(result => {
+        if (result.user) {
             const user = result.user;
             playerId = user.uid;
             playerName = user.displayName;
@@ -30,13 +30,20 @@ function signInWithGoogle() {
             document.getElementById('lobby-page').style.display = 'block';
 
             joinLobby();
-        })
-        .catch(error => {
-            console.error('Google Sign-In Error:', error);
-            alert('Google Login Failed. Check console for details.');
-        });
+        }
+    })
+    .catch(error => {
+        console.error('Google Sign-In Error:', error);
+        alert('Google Login Failed. Check console for details.');
+    });
+
+// 🔹 Google Sign-In Trigger
+function signInWithGoogle() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    firebase.auth().signInWithRedirect(provider); // Redirect to Google login
 }
 
+// 🔹 Join Lobby
 function joinLobby() {
     const playerRef = db.ref('lobby/' + playerId);
 
@@ -59,6 +66,7 @@ function joinLobby() {
     });
 }
 
+// 🔹 Listen for Lobby Changes
 function listenForPlayers() {
     db.ref('lobby').on('value', snapshot => {
         const players = snapshot.val();
@@ -88,10 +96,12 @@ function listenForPlayers() {
     });
 }
 
+// 🔹 Mark Ready
 function markReady() {
     db.ref('lobby/' + playerId).update({ ready: true });
 }
 
+// 🔹 Start Game (Host Only)
 function startGame() {
     db.ref('lobby').once('value').then(snapshot => {
         const players = snapshot.val();
@@ -115,6 +125,7 @@ function startGame() {
     });
 }
 
+// 🔹 Listen for Game Start
 function listenForGameStart() {
     db.ref('gameStarted').on('value', snapshot => {
         const gameData = snapshot.val();
@@ -124,7 +135,7 @@ function listenForGameStart() {
     });
 }
 
-// Save game history when the round is completed
+// 🔹 Save Game History After Round Completes
 function saveGameHistory() {
     db.ref('players').once('value').then(snapshot => {
         const players = snapshot.val();
