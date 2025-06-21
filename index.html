@@ -2,29 +2,32 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Trivia Multiplayer Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trivia Challenge</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 </head>
 <body>
 
-    <h1>Challenge Your Knowledge</h1>
-
     <!-- Landing Page -->
     <div id="landing-page">
+        <h1>Challenge Your Knowledge</h1>
         <input type="text" id="player-name" placeholder="Enter your name">
-        <button onclick="joinLobby()">Join Game</button>
+        <button onclick="joinLobby()">Start</button>
     </div>
 
     <!-- Lobby Page -->
     <div id="lobby" style="display: none;">
-        <h2>Waiting Room</h2>
+        <h2>Waiting for Players...</h2>
         <ul id="player-list"></ul>
-        <button onclick="markReady()">I’m Ready</button>
-        <button id="start-button" style="display: none;" onclick="startGame()">Start Game</button>
+
+        <button id="ready-button" onclick="markReady()">I'm Ready</button>
+        <button id="start-button" onclick="startGame()" style="display:none;">Start Game</button>
     </div>
 
+    <!-- Firebase and Game Logic -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="script.js"></script>
+
 </body>
 </html>
