@@ -17,17 +17,17 @@ const db = firebase.database();
 let playerName = '';
 let playerId = '';
 
-// Prevent multiple sessions from same device
-if (localStorage.getItem('playerId')) {
-    alert('You already joined from this device.');
+// If the player already has a live session ID, block joining
+if (localStorage.getItem('livePlayerId')) {
+    alert('You already have a live session open on this device.');
 } else {
-    // Allow joining
     console.log('You can join the game.');
 }
 
 function joinLobby() {
-    if (localStorage.getItem('playerId')) {
-        alert('You already joined from this device.');
+    // Block multiple live sessions
+    if (localStorage.getItem('livePlayerId')) {
+        alert('You already have a live session open on this device.');
         return;
     }
 
@@ -38,7 +38,7 @@ function joinLobby() {
     }
 
     playerId = Date.now(); // Unique ID
-    localStorage.setItem('playerId', playerId); // Save session locally
+    localStorage.setItem('livePlayerId', playerId); // Track this live session only
 
     // Save player to lobby
     db.ref('lobby/' + playerId).set({
@@ -46,8 +46,14 @@ function joinLobby() {
         ready: false
     });
 
-    // Auto remove player if they disconnect
+    // Auto remove player if disconnected
     db.ref('lobby/' + playerId).onDisconnect().remove();
+    // Also clear session from localStorage on disconnect
+    db.ref('lobby/' + playerId).onDisconnect().cancel(); // Cancel previous onDisconnect
+    db.ref('lobby/' + playerId).onDisconnect().remove();
+    window.addEventListener('beforeunload', () => {
+        localStorage.removeItem('livePlayerId'); // Clear session when closing tab
+    });
 
     document.getElementById('landing-page').style.display = 'none';
     document.getElementById('lobby').style.display = 'block';
@@ -80,6 +86,11 @@ function listenForPlayers() {
                 li.textContent += ' 👑 Host';
             }
 
+            // Show if this is your session
+            if (id == localStorage.getItem('livePlayerId')) {
+                li.textContent += ' 👉 You';
+            }
+
             // Show ready status
             li.textContent += players[id].ready ? ' ✅' : ' ❌';
             playerList.appendChild(li);
@@ -88,7 +99,7 @@ function listenForPlayers() {
             playerCount++;
         }
 
-        // Show start button only to host
+        // Show "Let's Start" button only to host if all ready
         if (allReady && playerCount > 1 && playerId == firstPlayerId) {
             document.getElementById('start-button').style.display = 'inline-block';
         } else {
@@ -105,5 +116,5 @@ function markReady() {
 
 function startGame() {
     db.ref('gameStarted').set(true);
-    window.location.href = 'game.html'; // We will build this page next
+    window.location.href = 'game.html'; // We will build this next
 }
