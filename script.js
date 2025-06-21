@@ -17,8 +17,15 @@ const db = firebase.database();
 let playerName = '';
 let playerId = '';
 
+// Prevent multiple sessions from same device
+if (localStorage.getItem('playerId')) {
+    alert('You already joined from this device.');
+} else {
+    // Allow joining
+    console.log('You can join the game.');
+}
+
 function joinLobby() {
-    // Check if player already joined on this device
     if (localStorage.getItem('playerId')) {
         alert('You already joined from this device.');
         return;
@@ -39,7 +46,7 @@ function joinLobby() {
         ready: false
     });
 
-    // Auto remove player if they close the game
+    // Auto remove player if they disconnect
     db.ref('lobby/' + playerId).onDisconnect().remove();
 
     document.getElementById('landing-page').style.display = 'none';
@@ -47,6 +54,7 @@ function joinLobby() {
 
     listenForPlayers();
 }
+
 function listenForPlayers() {
     db.ref('lobby/').on('value', (snapshot) => {
         const players = snapshot.val();
@@ -55,17 +63,33 @@ function listenForPlayers() {
 
         let allReady = true;
         let playerCount = 0;
+        let firstPlayerId = null;
 
+        // Identify the host (first player)
+        for (let id in players) {
+            if (!firstPlayerId) firstPlayerId = id;
+        }
+
+        // Display players
         for (let id in players) {
             const li = document.createElement('li');
-            li.textContent = players[id].name + (players[id].ready ? ' ✅' : ' ❌');
+            li.textContent = players[id].name;
+
+            // Show host icon
+            if (id === firstPlayerId) {
+                li.textContent += ' 👑 Host';
+            }
+
+            // Show ready status
+            li.textContent += players[id].ready ? ' ✅' : ' ❌';
             playerList.appendChild(li);
 
             if (!players[id].ready) allReady = false;
             playerCount++;
         }
 
-        if (allReady && playerCount > 1) {
+        // Show start button only to host
+        if (allReady && playerCount > 1 && playerId == firstPlayerId) {
             document.getElementById('start-button').style.display = 'inline-block';
         } else {
             document.getElementById('start-button').style.display = 'none';
@@ -81,5 +105,5 @@ function markReady() {
 
 function startGame() {
     db.ref('gameStarted').set(true);
-    window.location.href = 'game.html'; // Next page we will build soon
+    window.location.href = 'game.html'; // We will build this page next
 }
