@@ -19,17 +19,18 @@ const urlParams = new URLSearchParams(window.location.search);
 const playerId = urlParams.get('id');
 const playerName = urlParams.get('name');
 
-let currentQuestion = 1;
+// Initialize variables
+let questions = [];
+let currentQuestion = 0;
 let playerScore = 0;
 let timerInterval;
 let timeLeft = 30;
-let totalQuestions = 5; // You can adjust based on your database
 
-// Setup disconnect tracking
+// Setup disconnection tracking
 const playerRef = db.ref('players/' + playerId);
 playerRef.onDisconnect().update({ disconnected: true });
 
-// Initialize player score
+// Initialize player data
 playerRef.set({
     name: playerName,
     score: 0,
@@ -38,35 +39,42 @@ playerRef.set({
     completionTime: 0
 });
 
-// Start the game
-loadQuestion();
-listenForScores();
-
-function loadQuestion() {
-    db.ref('questions/' + currentQuestion).once('value').then(snapshot => {
-        if (!snapshot.exists()) {
-            finishGame();
-            return;
-        }
-
-        const data = snapshot.val();
-        document.getElementById('question-text').textContent = data.question;
-
-        const optionsDiv = document.getElementById('options');
-        optionsDiv.innerHTML = '';
-
-        data.options.forEach(option => {
-            const btn = document.createElement('button');
-            btn.textContent = option;
-            btn.classList.add('question-option');
-            btn.onclick = () => submitAnswer(option, data.answer);
-            optionsDiv.appendChild(btn);
-        });
-
-        startTimer();
+// Load questions from local JSON file
+fetch('questions.json')
+    .then(response => response.json())
+    .then(data => {
+        questions = data;
+        loadQuestion();
+    })
+    .catch(error => {
+        console.error('Error loading questions:', error);
     });
+
+// Load a question
+function loadQuestion() {
+    if (currentQuestion >= questions.length) {
+        finishGame();
+        return;
+    }
+
+    const data = questions[currentQuestion];
+    document.getElementById('question-text').textContent = data.question;
+
+    const optionsDiv = document.getElementById('options');
+    optionsDiv.innerHTML = '';
+
+    data.options.forEach(option => {
+        const btn = document.createElement('button');
+        btn.textContent = option;
+        btn.classList.add('question-option');
+        btn.onclick = () => submitAnswer(option, data.answer);
+        optionsDiv.appendChild(btn);
+    });
+
+    startTimer();
 }
 
+// Start question timer
 function startTimer() {
     timeLeft = 30;
     document.getElementById('timer').textContent = `Time Left: ${timeLeft}`;
@@ -78,11 +86,12 @@ function startTimer() {
 
         if (timeLeft <= 0) {
             clearInterval(timerInterval);
-            loadNextQuestion(); // Auto move to next if time runs out
+            loadNextQuestion(); // Skip if time runs out
         }
     }, 1000);
 }
 
+// Handle answer submission
 function submitAnswer(selected, correct) {
     clearInterval(timerInterval);
 
@@ -97,16 +106,13 @@ function submitAnswer(selected, correct) {
     loadNextQuestion();
 }
 
+// Load the next question
 function loadNextQuestion() {
     currentQuestion++;
-
-    if (currentQuestion > totalQuestions) {
-        finishGame();
-    } else {
-        loadQuestion();
-    }
+    loadQuestion();
 }
 
+// Handle game finish
 function finishGame() {
     clearInterval(timerInterval);
 
@@ -117,9 +123,10 @@ function finishGame() {
         completionTime: finishTime
     });
 
-    alert('Game finished! Waiting for others...');
+    alert('You finished the game! Waiting for others...');
 }
 
+// Listen for real-time score updates
 function listenForScores() {
     db.ref('players/').on('value', snapshot => {
         const players = snapshot.val();
@@ -143,3 +150,6 @@ function listenForScores() {
         }
     });
 }
+
+// Start listening for scores immediately
+listenForScores();
