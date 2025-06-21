@@ -16,7 +16,7 @@ const db = firebase.database();
 
 let playerName = '';
 let playerId = '';
-let deviceSessionKey = navigator.userAgent + '_' + Math.random(); // Unique device session
+let deviceSessionKey = navigator.userAgent + '_' + Math.random(); // Unique session per browser tab
 
 function joinLobby() {
     const deviceSessionRef = db.ref('deviceSessions/' + btoa(deviceSessionKey));
@@ -24,7 +24,7 @@ function joinLobby() {
     // Check if this device already has a live session
     deviceSessionRef.once('value', (snapshot) => {
         if (snapshot.exists()) {
-            alert('You already have a live session open on this device.');
+            alert('You already have a live session open on this device.\nPlease wait a few seconds and try again.');
             return;
         } else {
             startJoining(deviceSessionRef);
@@ -39,7 +39,7 @@ function startJoining(deviceSessionRef) {
         return;
     }
 
-    playerId = Date.now(); // Unique ID
+    playerId = Date.now(); // Unique player ID
 
     // Save device session
     deviceSessionRef.set({
@@ -51,13 +51,16 @@ function startJoining(deviceSessionRef) {
     deviceSessionRef.onDisconnect().remove();
 
     // Save player to lobby
-    db.ref('lobby/' + playerId).set({
+    const playerRef = db.ref('lobby/' + playerId);
+    playerRef.set({
         name: playerName,
         ready: false
     });
 
     // Auto remove player on disconnect
-    db.ref('lobby/' + playerId).onDisconnect().remove();
+    playerRef.onDisconnect().remove();
+
+    // Watch if player is removed from Firebase → no localStorage needed anymore
 
     document.getElementById('landing-page').style.display = 'none';
     document.getElementById('lobby').style.display = 'block';
@@ -107,12 +110,18 @@ function listenForPlayers() {
 }
 
 function markReady() {
-    db.ref('lobby/' + playerId).update({
+    const playerRef = db.ref('lobby/' + playerId);
+
+    // Mark player as ready
+    playerRef.update({
         ready: true
     });
+
+    // Re-attach onDisconnect to guarantee cleanup after update
+    playerRef.onDisconnect().remove();
 }
 
 function startGame() {
     db.ref('gameStarted').set(true);
-    window.location.href = 'game.html'; // We will build this next
+    window.location.href = 'game.html'; // We will build this page next
 }
