@@ -4,7 +4,7 @@ const firebaseConfig = {
     authDomain: "trivia-elaslyeen.firebaseapp.com",
     databaseURL: "https://trivia-elaslyeen-default-rtdb.europe-west1.firebasedatabase.app",
     projectId: "trivia-elaslyeen",
-    storageBucket: "trivia-elaslyeen.firebasestorage.app",
+    storageBucket: "trivia-elaslyeen.appspot.com",
     messagingSenderId: "219060342462",
     appId: "1:219060342462:web:f576405834c497ec6958ef",
     measurementId: "G-7P35LE8PBD"
@@ -17,7 +17,7 @@ const db = firebase.database();
 let playerName = '';
 let playerId = '';
 
-// If the player already has a live session ID, block joining
+// If the device already has a live session, block joining
 if (localStorage.getItem('livePlayerId')) {
     alert('You already have a live session open on this device.');
 } else {
@@ -38,7 +38,7 @@ function joinLobby() {
     }
 
     playerId = Date.now(); // Unique ID
-    localStorage.setItem('livePlayerId', playerId); // Track this live session only
+    localStorage.setItem('livePlayerId', playerId); // Track this live session
 
     // Save player to lobby
     db.ref('lobby/' + playerId).set({
@@ -48,13 +48,15 @@ function joinLobby() {
 
     // Auto remove player if disconnected
     db.ref('lobby/' + playerId).onDisconnect().remove();
-    // Also clear session from localStorage on disconnect
-    db.ref('lobby/' + playerId).onDisconnect().cancel(); // Cancel previous onDisconnect
-    db.ref('lobby/' + playerId).onDisconnect().remove();
-    window.addEventListener('beforeunload', () => {
-        localStorage.removeItem('livePlayerId'); // Clear session when closing tab
+
+    // Watch if player is removed from Firebase → clear device session
+    db.ref('lobby/' + playerId).on('value', (snapshot) => {
+        if (snapshot.exists() === false) {
+            localStorage.removeItem('livePlayerId'); // Clean device session
+        }
     });
 
+    // Show lobby
     document.getElementById('landing-page').style.display = 'none';
     document.getElementById('lobby').style.display = 'block';
 
@@ -99,7 +101,7 @@ function listenForPlayers() {
             playerCount++;
         }
 
-        // Show "Let's Start" button only to host if all ready
+        // Show "Let's Start" button only to host when all are ready
         if (allReady && playerCount > 1 && playerId == firstPlayerId) {
             document.getElementById('start-button').style.display = 'inline-block';
         } else {
@@ -116,5 +118,5 @@ function markReady() {
 
 function startGame() {
     db.ref('gameStarted').set(true);
-    window.location.href = 'game.html'; // We will build this next
+    window.location.href = 'game.html'; // We will build this page next
 }
