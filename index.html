@@ -1,33 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trivia Challenge</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Trivia Game</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
+  <div id="login-page">
+    <h1>Challenge Your Knowledge</h1>
+    <button onclick="signInWithGoogle()">Sign in with Google</button>
+  </div>
 
-    <!-- Landing Page -->
-    <div id="landing-page">
-        <h1>Challenge Your Knowledge</h1>
-        <input type="text" id="player-name" placeholder="Enter your name">
-        <button onclick="joinLobby()">Start</button>
-    </div>
+  <div id="lobby-page" style="display:none;">
+    <h2>Welcome, <span id="player-name"></span></h2>
+    <ul id="player-list"></ul>
+    <button id="ready-button" onclick="markReady()">I Am Ready</button>
+    <button id="start-button" onclick="startGame()" style="display:none;">Start Game</button>
+  </div>
 
-    <!-- Lobby Page -->
-    <div id="lobby" style="display: none;">
-        <h2>Waiting for Players...</h2>
-        <ul id="player-list"></ul>
-
-        <button id="ready-button" onclick="markReady()">I'm Ready</button>
-        <button id="start-button" onclick="startGame()" style="display:none;">Start Game</button>
-    </div>
-
-    <!-- Firebase and Game Logic -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <script src="script.js"></script>
-
+  <script src="script.js"></script>
 </body>
 </html>
