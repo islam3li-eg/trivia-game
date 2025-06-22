@@ -14,10 +14,10 @@ const db   = firebase.database();
 const auth = firebase.auth();
 
 /********************  Auth setup  ********************/
-// Keep users signed-in across visits
+// Keep users signed-in between visits
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
-// Central listener for both initial load and popup sign-in
+// Central listener for login state
 auth.onAuthStateChanged(user => {
   if (!user) {
     console.log('No user – show login');
@@ -25,12 +25,10 @@ auth.onAuthStateChanged(user => {
     document.getElementById('lobby-page').style.display = 'none';
     return;
   }
-
   console.log('Logged in as', user.displayName);
   playerId   = user.uid;
   playerName = user.displayName || user.email;
 
-  // Show lobby
   document.getElementById('player-name').textContent  = playerName;
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('lobby-page').style.display = 'block';
@@ -38,16 +36,29 @@ auth.onAuthStateChanged(user => {
   joinLobby();
 });
 
-// Trigger Google popup
+/********************  Auth functions  ********************/
 function signInWithGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider)
-      .catch(err => console.warn('Popup failed:', err.code));
+  if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    console.log('Mobile detected – using redirect');
+    auth.signInWithRedirect(provider);
+  } else {
+    console.log('Desktop detected – using popup');
+    auth.signInWithPopup(provider)
+      .catch(err => {
+        console.warn('Popup failed, falling back to redirect:', err.code);
+        return auth.signInWithRedirect(provider);
+      });
+  }
 }
 
-// Optional sign-out
 function signOutOfGame() {
-  auth.signOut();
+  auth.signOut().then(() => {
+    console.log('Signed out');
+    // show login page again
+    document.getElementById('login-page').style.display = 'block';
+    document.getElementById('lobby-page').style.display = 'none';
+  });
 }
 
 /********************  Globals  ********************/
@@ -80,11 +91,13 @@ function listenForPlayers() {
     let allReady  = true;
 
     ids.forEach((id,i) => {
-      const p      = players[id];
-      let label    = p.name;
-      if (id === playerId) label += ' 👉 (You)';
-      if (p.ready)         label += ' ✅ Ready'; else allReady = false;
-      if (i === 0)         label += ' (Host)';
+      const p     = players[id];
+      let label   = p.name;
+      if (id === playerId)   label += ' 👉 (You)';
+      if (p.ready)           label += ' ✅ Ready';
+      else                   allReady = false;
+      if (i === 0)           label += ' (Host)';
+
       const li = document.createElement('li');
       li.textContent = label;
       ul.appendChild(li);
@@ -106,8 +119,10 @@ function startGame() {
       const p = child.val();
       if (p.ready) {
         roundPlayers[child.key] = {
-          name: p.name, score: 0,
-          finished: false, completionTime: 0,
+          name: p.name,
+          score: 0,
+          finished: false,
+          completionTime: 0,
           disconnected: false
         };
       }
