@@ -1,6 +1,6 @@
 // game.js
 
-// Firebase init (same as before)
+// Firebase init
 const firebaseConfig = {
   apiKey: "AIzaSyAfaNPHL2m7n66VBADqMmkNnBxUE6ucRjY",
   authDomain: "trivia-elaslyeen.firebaseapp.com",
@@ -13,21 +13,21 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Read URL params
+// URL params
 const urlParams     = new URLSearchParams(window.location.search);
 const playerId      = urlParams.get('id');
 const playerName    = decodeURIComponent(urlParams.get('name'));
 const totalQuestions = parseInt(urlParams.get('numQuestions')) || 0;
 
-let questions     = [];
-let currentQ      = 0;
-let playerScore   = 0;
+let questions   = [];
+let currentQ    = 0;
+let playerScore = 0;
 let timerInterval;
 
-// Track disconnect
+// Mark disconnected if browser closes
 db.ref('players/' + playerId).onDisconnect().update({ disconnected: true });
 
-// Initialize this player in /players
+// Initialize player entry
 db.ref('players/' + playerId).set({
   name: playerName,
   score: 0,
@@ -36,13 +36,10 @@ db.ref('players/' + playerId).set({
   completionTime: 0
 });
 
-// Add Quit button handler
+// Quit button
 function quitRound() {
   clearInterval(timerInterval);
-  db.ref('players/' + playerId).update({
-    disconnected: true
-    // finished remains false
-  });
+  db.ref('players/' + playerId).update({ disconnected: true });
   window.location.href = `roundScore.html?playerId=${playerId}`;
 }
 
@@ -57,16 +54,15 @@ function finishGame() {
   window.location.href = `roundScore.html?playerId=${playerId}`;
 }
 
-// Fetch and shuffle questions
+// Load & shuffle questions
 fetch('questions.json')
   .then(r => r.json())
   .then(data => {
     shuffleArray(data);
-    // Take only as many as host requested
     questions = data.slice(0, totalQuestions || data.length);
     loadQuestion();
   })
-  .catch(err => console.error('Error loading questions:', err));
+  .catch(err => console.error(err));
 
 // Fisher–Yates shuffle
 function shuffleArray(a) {
@@ -76,7 +72,6 @@ function shuffleArray(a) {
   }
 }
 
-// Load current question
 function loadQuestion() {
   if (currentQ >= questions.length) {
     finishGame();
@@ -96,7 +91,6 @@ function loadQuestion() {
   startTimer();
 }
 
-// Timer logic
 function startTimer() {
   let timeLeft = 30;
   document.getElementById('timer').textContent = `Time Left: ${timeLeft}`;
@@ -111,7 +105,6 @@ function startTimer() {
   }, 1000);
 }
 
-// Handle answer selection
 function submitAnswer(selected, correct) {
   clearInterval(timerInterval);
   document.querySelectorAll('.question-option').forEach(btn => {
@@ -129,7 +122,7 @@ function loadNextQuestion() {
   loadQuestion();
 }
 
-// Live scoreboard updates
+// Live scoreboard
 db.ref('players/').on('value', snap => {
   const players = snap.val() || {};
   const ul      = document.getElementById('score-list');
