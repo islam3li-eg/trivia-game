@@ -15,13 +15,19 @@
     <button onclick="signInWithGoogle()">Sign in with Google</button>
   </div>
 
-  <div id="lobby-page" style="display:none;">
-    <h2>Welcome, <span id="player-name"></span></h2>
-    <ul id="player-list"></ul>
-    <button onclick="signOutOfGame()">Sign Out</button>
-    <button id="ready-button" onclick="markReady()">I Am Ready</button>
-    <button id="start-button" onclick="startGame()" style="display:none;">Start Game</button>
+<div id="lobby-page" style="display:none;">
+  <h2>Welcome, <span id="player-name"></span></h2>
+  <ul id="player-list"></ul>
+
+  <!-- Host-only: number of questions -->
+  <div id="numQuestionsDiv" style="display:none; margin:10px;">
+    <input type="number" id="numQuestions" placeholder="Number of Questions" min="1"/>
   </div>
+
+  <button id="ready-button" onclick="markReady()">I Am Ready</button>
+  <button id="start-button" onclick="startGame()" style="display:none;">Start Game</button>
+  <button onclick="signOutOfGame()">Sign Out</button>
+</div>
 
   <script src="script.js"></script>
 </body>
