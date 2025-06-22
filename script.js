@@ -1,4 +1,4 @@
-/********************  Firebase initialisation  ********************/
+/********************  Firebase init  ********************/
 const firebaseConfig = {
   apiKey: "AIzaSyAfaNPHL2m7n66VBADqMmkNnBxUE6ucRjY",
   authDomain: "trivia-elaslyeen.firebaseapp.com",
@@ -13,60 +13,56 @@ firebase.initializeApp(firebaseConfig);
 const db   = firebase.database();
 const auth = firebase.auth();
 
-/********************  Auth setup  ************************/
-/* Keep user signed-in between visits */
+/********************  Auth setup  ********************/
+// Keep users signed-in across visits
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
-/* Centralised auth handler:
-   – fires after Google redirect returns
-   – fires on every page refresh if user still signed-in */
+// Central listener for both initial load and popup sign-in
 auth.onAuthStateChanged(user => {
   if (!user) {
-    console.log('No user – show login page');
-    document.getElementById('login-page').style.display  = 'block';
-    document.getElementById('lobby-page').style.display  = 'none';
+    console.log('No user – show login');
+    document.getElementById('login-page').style.display = 'block';
+    document.getElementById('lobby-page').style.display = 'none';
     return;
   }
-  console.log('Logged-in as', user.displayName);
 
+  console.log('Logged in as', user.displayName);
   playerId   = user.uid;
   playerName = user.displayName || user.email;
 
-  document.getElementById('player-name').textContent = playerName;
+  // Show lobby
+  document.getElementById('player-name').textContent  = playerName;
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('lobby-page').style.display = 'block';
 
-  joinLobby();          // continue normal flow
+  joinLobby();
 });
 
-/* Trigger Google login (redirect) */
+// Trigger Google popup
 function signInWithGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithRedirect(provider);
+  auth.signInWithPopup(provider)
+      .catch(err => console.warn('Popup failed:', err.code));
 }
 
-/* Optional logout button */
+// Optional sign-out
 function signOutOfGame() {
   auth.signOut();
 }
 
-/********************  Global vars  ************************/
+/********************  Globals  ********************/
 let playerId   = '';
 let playerName = '';
 let isHost     = false;
 
-/********************  Lobby logic  ************************/
+/********************  Lobby logic  ********************/
 function joinLobby() {
-  const playerRef = db.ref('lobby/' + playerId);
-
-  /* Add player if not already present */
-  playerRef.once('value').then(snap => {
+  const ref = db.ref('lobby/' + playerId);
+  ref.once('value').then(snap => {
     if (!snap.exists()) {
-      playerRef.set({ name: playerName, ready: false });
-      playerRef.onDisconnect().remove();
+      ref.set({ name: playerName, ready: false });
+      ref.onDisconnect().remove();
     }
-
-    /* First player becomes host */
     db.ref('lobby').once('value').then(s => {
       if (s.numChildren() === 1) isHost = true;
       listenForPlayers();
@@ -77,28 +73,24 @@ function joinLobby() {
 
 function listenForPlayers() {
   db.ref('lobby').on('value', snap => {
-    const ul = document.getElementById('player-list');
-    ul.innerHTML = '';
-
     const players = snap.val() || {};
     const ids     = Object.keys(players);
+    const ul      = document.getElementById('player-list');
+    ul.innerHTML  = '';
     let allReady  = true;
 
-    ids.forEach((id, index) => {
-      const p   = players[id];
-      let label = p.name;
+    ids.forEach((id,i) => {
+      const p      = players[id];
+      let label    = p.name;
       if (id === playerId) label += ' 👉 (You)';
-      if (p.ready)         label += ' ✅ Ready';
-      else                 allReady = false;
-      if (index === 0)     label += ' (Host)';
-
+      if (p.ready)         label += ' ✅ Ready'; else allReady = false;
+      if (i === 0)         label += ' (Host)';
       const li = document.createElement('li');
       li.textContent = label;
       ul.appendChild(li);
     });
 
-    const startBtn = document.getElementById('start-button');
-    startBtn.style.display =
+    document.getElementById('start-button').style.display =
       (isHost && allReady && ids.length > 1) ? 'block' : 'none';
   });
 }
@@ -108,26 +100,21 @@ function markReady() {
 }
 
 function startGame() {
-  /* Host bundles only the ready players into /players, then starts game */
   db.ref('lobby').once('value').then(snap => {
-    const players      = snap.val() || {};
     const roundPlayers = {};
-
-    Object.entries(players).forEach(([id, pdata]) => {
-      if (pdata.ready) {
-        roundPlayers[id] = {
-          name: pdata.name,
-          score: 0,
-          finished: false,
-          completionTime: 0,
+    snap.forEach(child => {
+      const p = child.val();
+      if (p.ready) {
+        roundPlayers[child.key] = {
+          name: p.name, score: 0,
+          finished: false, completionTime: 0,
           disconnected: false
         };
       }
     });
-
     db.ref('players').set(roundPlayers);
     db.ref('gameStarted').set({ active: true, timestamp: Date.now() });
-    db.ref('lobby').remove();                // clear lobby for next round
+    db.ref('lobby').remove();
   });
 }
 
@@ -135,29 +122,25 @@ function listenForGameStart() {
   db.ref('gameStarted').on('value', snap => {
     const g = snap.val();
     if (g && g.active) {
-      /* encode playerName to be URL-safe */
       const pn = encodeURIComponent(playerName);
       window.location.href = `game.html?id=${playerId}&name=${pn}`;
     }
   });
 }
 
-/********************  Round-history helper  ************************/
+/********************  History helper  ********************/
 function saveGameHistory() {
   db.ref('players').once('value').then(snap => {
     const players = snap.val() || {};
     let champ     = '', top = -1;
-
     Object.values(players).forEach(p => {
       if (p.score > top) { top = p.score; champ = p.name; }
     });
-
     db.ref('history').push({
       date: new Date().toISOString(),
       players: players,
       champion: champ
     });
-
     db.ref('players').remove();
     db.ref('gameStarted').set({ active: false });
   });
