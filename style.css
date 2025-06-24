@@ -75,3 +75,11 @@ li {
   padding: 10px;
   box-sizing: border-box;
 }
+
+/* Make the number‐of‐questions input responsive */
+#numQuestionsDiv input {
+  width: 80%;
+  max-width: 200px;
+  padding: 10px;
+  box-sizing: border-box;
+}
