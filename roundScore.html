@@ -27,30 +27,31 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Listen for changes to /players and update dynamically
+    // 1) Listen live for players to update their status
     db.ref('players').on('value', snap => {
       const players = snap.val() || {};
       const ul = document.getElementById('score-list');
       ul.innerHTML = '';
-
       Object.values(players).forEach(p => {
         let text = `${p.name}: ${p.score}`;
-        if (p.finished) {
-          text += ' ✔️ Finished';
-        } else {
-          text += ' ⏳ Pending';
-        }
-        if (p.disconnected && !p.finished) {
-          text += ' 🔴 Disconnected';
-        }
+        text += p.finished ? ' ✔️ Finished' : ' ⏳ Pending';
+        if (p.disconnected && !p.finished) text += ' 🔴 Disconnected';
         const li = document.createElement('li');
         li.textContent = text;
         ul.appendChild(li);
       });
     });
 
+    // 2) Once initial data has rendered, clear out the game state 
+    //    so that returning Home won't re-enter the game.
+    db.ref('players').once('value').then(() => {
+      db.ref('players').remove();
+      db.ref('gameStarted').remove();
+      db.ref('host').remove();
+    });
+
     function goHome() {
-      window.location.href = 'index.html';
+      location.href = 'index.html';
     }
   </script>
 </body>
