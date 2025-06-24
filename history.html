@@ -14,12 +14,15 @@
     </thead>
     <tbody id="history-body"></tbody>
   </table>
+  <button id="clear-history" style="display:none;" onclick="clearHistory()">
+    Clear History
+  </button>
   <button onclick="location.href='index.html'">Home</button>
 
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script>
-    // Initialize Firebase (same config as everywhere)
     const firebaseConfig = {
       apiKey: "AIzaSyAfaNPHL2m7n66VBADqMmkNnBxUE6ucRjY",
       authDomain: "trivia-elaslyeen.firebaseapp.com",
@@ -30,21 +33,40 @@
       appId: "1:219060342462:web:f576405834c497ec6958ef"
     };
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    const auth = firebase.auth();
+    const db   = firebase.database();
 
-    // Live‐listen to all history entries
+    // YOUR UID here so only you see the Clear button
+    const ownerUid = "PUT_OWNER_UID_HERE";
+
+    auth.onAuthStateChanged(user => {
+      if (user && user.uid === ownerUid) {
+        document.getElementById('clear-history').style.display = 'inline-block';
+      }
+    });
+
+    // Load history
     db.ref('history').on('value', snap => {
-      const history = snap.val() || {};
-      const tbody   = document.getElementById('history-body');
-      tbody.innerHTML = '';  // clear old rows
-
-      Object.values(history).forEach(entry => {
-        const tr    = document.createElement('tr');
-        const date  = new Date(entry.date).toLocaleString();
-        tr.innerHTML = `<td>${date}</td><td>${entry.champion}</td>`;
+      const hist = snap.val() || {};
+      const tbody = document.getElementById('history-body');
+      tbody.innerHTML = '';
+      Object.values(hist).forEach(h => {
+        const tr   = document.createElement('tr');
+        const tdD  = document.createElement('td');
+        tdD.textContent = new Date(h.date).toLocaleString();
+        const tdC  = document.createElement('td');
+        tdC.textContent = h.champion;
+        tr.appendChild(tdD);
+        tr.appendChild(tdC);
         tbody.appendChild(tr);
       });
     });
+
+    function clearHistory() {
+      if (confirm('Erase all history?')) {
+        db.ref('history').remove();
+      }
+    }
   </script>
 </body>
 </html>
