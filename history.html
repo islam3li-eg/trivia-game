@@ -23,7 +23,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script>
-    // Init Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyAfaNPHL2m7n66VBADqMmkNnBxUE6ucRjY",
       authDomain: "trivia-elaslyeen.firebaseapp.com",
@@ -37,26 +36,28 @@
     const auth = firebase.auth();
     const db   = firebase.database();
 
-    // Replace this with *your* UID
+    // YOUR UID here so only you see the Clear button
     const ownerUid = "PUT_OWNER_UID_HERE";
 
-    // Show Clear button only to owner
     auth.onAuthStateChanged(user => {
       if (user && user.uid === ownerUid) {
         document.getElementById('clear-history').style.display = 'inline-block';
       }
     });
 
-    // Load history entries
+    // Load history
     db.ref('history').on('value', snap => {
-      const history = snap.val() || {};
-      const tbody   = document.getElementById('history-body');
+      const hist = snap.val() || {};
+      const tbody = document.getElementById('history-body');
       tbody.innerHTML = '';
-
-      Object.values(history).forEach(h => {
-        const date = new Date(h.date).toLocaleString();
+      Object.values(hist).forEach(h => {
         const tr   = document.createElement('tr');
-        tr.innerHTML = `<td>${date}</td><td>${h.champion}</td>`;
+        const tdD  = document.createElement('td');
+        tdD.textContent = new Date(h.date).toLocaleString();
+        const tdC  = document.createElement('td');
+        tdC.textContent = h.champion;
+        tr.appendChild(tdD);
+        tr.appendChild(tdC);
         tbody.appendChild(tr);
       });
     });
