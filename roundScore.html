@@ -14,7 +14,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script>
-    // Init Firebase
+    // Initialize Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyAfaNPHL2m7n66VBADqMmkNnBxUE6ucRjY",
       authDomain: "trivia-elaslyeen.firebaseapp.com",
@@ -27,10 +27,11 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Render each player's final status
-    db.ref('players').once('value').then(snap => {
+    // Listen for changes to /players and update dynamically
+    db.ref('players').on('value', snap => {
       const players = snap.val() || {};
       const ul = document.getElementById('score-list');
+      ul.innerHTML = '';
 
       Object.values(players).forEach(p => {
         let text = `${p.name}: ${p.score}`;
@@ -46,10 +47,6 @@
         li.textContent = text;
         ul.appendChild(li);
       });
-
-      // Clear the active game so Home stays on lobby
-      db.ref('gameStarted').remove();
-      db.ref('host').remove();
     });
 
     function goHome() {
