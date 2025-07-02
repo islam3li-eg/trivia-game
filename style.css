@@ -67,19 +67,3 @@ li {
         font-size: 1.5rem;
     }
 }
-
-/* Ensure the num‐questions input fits on all screens */
-#numQuestionsDiv input {
-  width: 80%;
-  max-width: 200px;
-  padding: 10px;
-  box-sizing: border-box;
-}
-
-/* Make the number‐of‐questions input responsive */
-#numQuestionsDiv input {
-  width: 80%;
-  max-width: 200px;
-  padding: 10px;
-  box-sizing: border-box;
-}

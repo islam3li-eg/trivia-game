@@ -1,45 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Trivia Game</title>
-  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="style.css" />
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
-
-  <!-- Login Screen -->
   <div id="login-page">
     <h1>Challenge Your Knowledge</h1>
     <button onclick="signInWithGoogle()">Sign in with Google</button>
   </div>
 
-  <!-- Lobby Screen -->
   <div id="lobby-page" style="display:none;">
     <h2>Welcome, <span id="player-name"></span></h2>
     <ul id="player-list"></ul>
-
-    <!-- Host-only: number of questions -->
-    <div id="numQuestionsDiv" style="display:none; margin:10px 0;">
-      <input
-        type="number"
-        id="numQuestions"
-        placeholder="Number of Questions"
-        min="1"
-      />
-    </div>
-
-    <button id="ready-button"    onclick="markReady()">I Am Ready</button>
-    <button id="start-button"    onclick="startGame()" style="display:none;">
-      Start Game
-    </button>
-    <button                    onclick="signOutOfGame()">Sign Out</button>
-    <button                    onclick="location.href='history.html'">
-      History
-    </button>
+    <button id="ready-button" onclick="markReady()">I Am Ready</button>
+    <button id="start-button" onclick="startGame()" style="display:none;">Start Game</button>
   </div>
 
   <script src="script.js"></script>

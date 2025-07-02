@@ -1,6 +1,4 @@
-// script.js
-
-/******************** Firebase initialization ********************/
+/********************  Firebase initialisation  ********************/
 const firebaseConfig = {
   apiKey: "AIzaSyAfaNPHL2m7n66VBADqMmkNnBxUE6ucRjY",
   authDomain: "trivia-elaslyeen.firebaseapp.com",
@@ -15,111 +13,92 @@ firebase.initializeApp(firebaseConfig);
 const db   = firebase.database();
 const auth = firebase.auth();
 
-/******************** Authentication setup ********************/
-// Persist auth state across sessions
+/********************  Auth setup  ************************/
+/* Keep user signed-in between visits */
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
-// Central listener: fires on login, redirect return, or page reload
+/* Centralised auth handler:
+   – fires after Google redirect returns
+   – fires on every page refresh if user still signed-in */
 auth.onAuthStateChanged(user => {
   if (!user) {
-    // Show login page
-    document.getElementById('login-page').style.display = 'block';
-    document.getElementById('lobby-page').style.display = 'none';
+    console.log('No user – show login page');
+    document.getElementById('login-page').style.display  = 'block';
+    document.getElementById('lobby-page').style.display  = 'none';
     return;
   }
+  console.log('Logged-in as', user.displayName);
 
-  // User is signed in
   playerId   = user.uid;
   playerName = user.displayName || user.email;
 
-  document.getElementById('player-name').textContent   = playerName;
-  document.getElementById('login-page').style.display  = 'none';
-  document.getElementById('lobby-page').style.display  = 'block';
+  document.getElementById('player-name').textContent = playerName;
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('lobby-page').style.display = 'block';
 
-  joinLobby();
+  joinLobby();          // continue normal flow
 });
 
-// Trigger Google Sign-In (popup on desktop, redirect on mobile)
+/* Trigger Google login (redirect) */
 function signInWithGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
-  if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-    auth.signInWithRedirect(provider);
-  } else {
-    auth.signInWithPopup(provider)
-      .catch(() => auth.signInWithRedirect(provider));
-  }
+  auth.signInWithRedirect(provider);
 }
 
-// Sign out and show login again
+/* Optional logout button */
 function signOutOfGame() {
   auth.signOut();
-  document.getElementById('login-page').style.display = 'block';
-  document.getElementById('lobby-page').style.display = 'none';
 }
 
-/******************** Global variables ********************/
+/********************  Global vars  ************************/
 let playerId   = '';
 let playerName = '';
-let hostId     = '';
 let isHost     = false;
 
-const hostRef = db.ref('host');
-
-/******************** Lobby logic ********************/
+/********************  Lobby logic  ************************/
 function joinLobby() {
-  const meRef = db.ref('lobby/' + playerId);
+  const playerRef = db.ref('lobby/' + playerId);
 
-  // Add self to lobby if not already present
-  meRef.once('value').then(snap => {
+  /* Add player if not already present */
+  playerRef.once('value').then(snap => {
     if (!snap.exists()) {
-      meRef.set({ name: playerName, ready: false });
-      meRef.onDisconnect().remove();
-    }
-    // Claim host slot if empty
-    hostRef.transaction(current => current || playerId);
-  });
-
-  // React to host assignments/changes
-  hostRef.on('value', snap => {
-    hostId = snap.val();
-    isHost = (hostId === playerId);
-
-    // Ensure host slot clears on host disconnect
-    if (isHost) {
-      hostRef.onDisconnect().remove();
+      playerRef.set({ name: playerName, ready: false });
+      playerRef.onDisconnect().remove();
     }
 
-    // Show number-of-questions input only to host
-    document.getElementById('numQuestionsDiv').style.display = isHost ? 'block' : 'none';
-
-    listenForPlayers();
-    listenForGameStart();
+    /* First player becomes host */
+    db.ref('lobby').once('value').then(s => {
+      if (s.numChildren() === 1) isHost = true;
+      listenForPlayers();
+      listenForGameStart();
+    });
   });
 }
 
 function listenForPlayers() {
   db.ref('lobby').on('value', snap => {
+    const ul = document.getElementById('player-list');
+    ul.innerHTML = '';
+
     const players = snap.val() || {};
     const ids     = Object.keys(players);
-    const ul      = document.getElementById('player-list');
-    ul.innerHTML  = '';
     let allReady  = true;
 
-    ids.forEach(id => {
-      const p     = players[id];
-      let label   = p.name;
+    ids.forEach((id, index) => {
+      const p   = players[id];
+      let label = p.name;
       if (id === playerId) label += ' 👉 (You)';
       if (p.ready)         label += ' ✅ Ready';
       else                 allReady = false;
-      if (id === hostId)   label += ' (Host)';
+      if (index === 0)     label += ' (Host)';
 
       const li = document.createElement('li');
       li.textContent = label;
       ul.appendChild(li);
     });
 
-    // Only host sees Start button when >1 players and all ready
-    document.getElementById('start-button').style.display =
+    const startBtn = document.getElementById('start-button');
+    startBtn.style.display =
       (isHost && allReady && ids.length > 1) ? 'block' : 'none';
   });
 }
@@ -128,73 +107,58 @@ function markReady() {
   db.ref('lobby/' + playerId).update({ ready: true });
 }
 
-/******************** Start game & save history ********************/
 function startGame() {
-  // 1) Snapshot /history from previous round (if any)
-  db.ref('players').once('value').then(snapshot => {
-    const players = snapshot.val() || {};
-    let champion = '', topScore = -1;
-    Object.values(players).forEach(p => {
-      if (p.score > topScore) {
-        topScore = p.score;
-        champion = p.name;
+  /* Host bundles only the ready players into /players, then starts game */
+  db.ref('lobby').once('value').then(snap => {
+    const players      = snap.val() || {};
+    const roundPlayers = {};
+
+    Object.entries(players).forEach(([id, pdata]) => {
+      if (pdata.ready) {
+        roundPlayers[id] = {
+          name: pdata.name,
+          score: 0,
+          finished: false,
+          completionTime: 0,
+          disconnected: false
+        };
       }
     });
-    // Push date + champion
-    return db.ref('history').push({
-      date: new Date().toISOString(),
-      champion: champion
-    });
-  })
-  .then(() => {
-    // 2) Begin new round
-    const nq = parseInt(document.getElementById('numQuestions').value, 10);
-    if (isNaN(nq) || nq < 1) {
-      alert('Please enter a valid number of questions.');
-      return;
-    }
 
-    return db.ref('lobby').once('value').then(snap => {
-      const roundPlayers = {};
-      snap.forEach(child => {
-        const p = child.val();
-        if (p.ready) {
-          roundPlayers[child.key] = {
-            name: p.name,
-            score: 0,
-            finished: false,
-            completionTime: 0,
-            disconnected: false
-          };
-        }
-      });
-      // Set up new game state
-      db.ref('players').set(roundPlayers);
-      db.ref('gameStarted').set({
-        active: true,
-        timestamp: Date.now(),
-        numQuestions: nq
-      });
-      db.ref('lobby').remove();
-    });
-  })
-  .catch(err => {
-    console.error('Error in startGame/history:', err);
+    db.ref('players').set(roundPlayers);
+    db.ref('gameStarted').set({ active: true, timestamp: Date.now() });
+    db.ref('lobby').remove();                // clear lobby for next round
   });
 }
 
-/******************** Listen for game start ********************/
 function listenForGameStart() {
-  db.ref('gameStarted').on('value', snapGame => {
-    const g = snapGame.val();
+  db.ref('gameStarted').on('value', snap => {
+    const g = snap.val();
     if (g && g.active) {
-      // Only redirect if I’m part of the new /players
-      db.ref(`players/${playerId}`).once('value').then(snapP => {
-        if (snapP.exists()) {
-          const pn = encodeURIComponent(playerName);
-          window.location.href = `game.html?id=${playerId}&name=${pn}&numQuestions=${g.numQuestions}`;
-        }
-      });
+      /* encode playerName to be URL-safe */
+      const pn = encodeURIComponent(playerName);
+      window.location.href = `game.html?id=${playerId}&name=${pn}`;
     }
+  });
+}
+
+/********************  Round-history helper  ************************/
+function saveGameHistory() {
+  db.ref('players').once('value').then(snap => {
+    const players = snap.val() || {};
+    let champ     = '', top = -1;
+
+    Object.values(players).forEach(p => {
+      if (p.score > top) { top = p.score; champ = p.name; }
+    });
+
+    db.ref('history').push({
+      date: new Date().toISOString(),
+      players: players,
+      champion: champ
+    });
+
+    db.ref('players').remove();
+    db.ref('gameStarted').set({ active: false });
   });
 }
