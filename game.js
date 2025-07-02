@@ -14,9 +14,9 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 // URL params
-const urlParams      = new URLSearchParams(window.location.search);
-const playerId       = urlParams.get('id');
-const playerName     = decodeURIComponent(urlParams.get('name'));
+const urlParams     = new URLSearchParams(window.location.search);
+const playerId      = urlParams.get('id');
+const playerName    = decodeURIComponent(urlParams.get('name'));
 const totalQuestions = parseInt(urlParams.get('numQuestions')) || 0;
 
 let questions   = [];
@@ -24,10 +24,10 @@ let currentQ    = 0;
 let playerScore = 0;
 let timerInterval;
 
-// Mark disconnect on close
+// Mark disconnected if browser closes
 db.ref('players/' + playerId).onDisconnect().update({ disconnected: true });
 
-// Add myself to /players
+// Initialize player entry
 db.ref('players/' + playerId).set({
   name: playerName,
   score: 0,
@@ -36,7 +36,7 @@ db.ref('players/' + playerId).set({
   completionTime: 0
 });
 
-// Quit mid‐round
+// Quit button
 function quitRound() {
   clearInterval(timerInterval);
   db.ref('players/' + playerId).update({ disconnected: true });
@@ -46,9 +46,10 @@ function quitRound() {
 // Finish normally
 function finishGame() {
   clearInterval(timerInterval);
+  const finishTime = Date.now();
   db.ref('players/' + playerId).update({
     finished: true,
-    completionTime: Date.now()
+    completionTime: finishTime
   });
   window.location.href = `roundScore.html?playerId=${playerId}`;
 }
@@ -61,8 +62,9 @@ fetch('questions.json')
     questions = data.slice(0, totalQuestions || data.length);
     loadQuestion();
   })
-  .catch(console.error);
+  .catch(err => console.error(err));
 
+// Fisher–Yates shuffle
 function shuffleArray(a) {
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -71,7 +73,10 @@ function shuffleArray(a) {
 }
 
 function loadQuestion() {
-  if (currentQ >= questions.length) return finishGame();
+  if (currentQ >= questions.length) {
+    finishGame();
+    return;
+  }
   const q = questions[currentQ];
   document.getElementById('question-text').textContent = q.question;
   const opts = document.getElementById('options');
@@ -91,11 +96,11 @@ function startTimer() {
   document.getElementById('timer').textContent = `Time Left: ${timeLeft}`;
   clearInterval(timerInterval);
   timerInterval = setInterval(() => {
-    if (--timeLeft <= 0) {
+    timeLeft--;
+    document.getElementById('timer').textContent = `Time Left: ${timeLeft}`;
+    if (timeLeft <= 0) {
       clearInterval(timerInterval);
       loadNextQuestion();
-    } else {
-      document.getElementById('timer').textContent = `Time Left: ${timeLeft}`;
     }
   }, 1000);
 }
@@ -105,8 +110,7 @@ function submitAnswer(selected, correct) {
   document.querySelectorAll('.question-option').forEach(btn => {
     btn.disabled = true;
     if (btn.textContent === correct) btn.style.backgroundColor = 'green';
-    if (btn.textContent === selected && selected !== correct)
-      btn.style.backgroundColor = 'red';
+    if (btn.textContent === selected && selected !== correct) btn.style.backgroundColor = 'red';
   });
   if (selected === correct) playerScore += 10;
   db.ref('players/' + playerId).update({ score: playerScore });
@@ -118,18 +122,14 @@ function loadNextQuestion() {
   loadQuestion();
 }
 
-// Live scoreboard with correct Finished vs Pending
+// Live scoreboard
 db.ref('players/').on('value', snap => {
   const players = snap.val() || {};
   const ul      = document.getElementById('score-list');
   ul.innerHTML  = '';
   Object.values(players).forEach(p => {
     let text = `${p.name}: ${p.score}`;
-    if (p.finished) {
-      text += ' ✔️ Finished';
-    } else {
-      text += ' ⏳ Pending';
-    }
+    if (!p.finished) text += ' ⏳ Pending';
     if (p.disconnected && !p.finished) text += ' 🔴 Disconnected';
     const li = document.createElement('li');
     li.textContent = text;
