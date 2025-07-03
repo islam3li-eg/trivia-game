@@ -9,12 +9,11 @@
 <body>
   <h2>Round Scores</h2>
   <ul id="score-list"></ul>
-  <button onclick="goHome()">Home</button>
+  <button id="home-btn">Home</button>
 
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script>
-    // Initialize Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyAfaNPHL2m7n66VBADqMmkNnBxUE6ucRjY",
       authDomain: "trivia-elaslyeen.firebaseapp.com",
@@ -27,7 +26,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 1) Listen live for players to update their status
+    // Live‐update statuses
     db.ref('players').on('value', snap => {
       const players = snap.val() || {};
       const ul = document.getElementById('score-list');
@@ -42,17 +41,13 @@
       });
     });
 
-    // 2) Once initial data has rendered, clear out the game state 
-    //    so that returning Home won't re-enter the game.
-    db.ref('players').once('value').then(() => {
+    // Clear state & return to lobby on Home
+    document.getElementById('home-btn').onclick = () => {
       db.ref('players').remove();
       db.ref('gameStarted').remove();
       db.ref('host').remove();
-    });
-
-    function goHome() {
-      location.href = 'index.html';
-    }
+      window.location.href = 'index.html';
+    };
   </script>
 </body>
 </html>
